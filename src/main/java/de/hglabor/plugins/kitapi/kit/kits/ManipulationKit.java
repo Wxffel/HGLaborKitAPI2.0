@@ -22,6 +22,7 @@ import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.metadata.FixedMetadataValue;
 
 import java.util.HashSet;
@@ -66,22 +67,25 @@ public class ManipulationKit extends AbstractKit implements Listener {
         Player player = event.getPlayer();
         if (event.getRightClicked() instanceof Mob) {
 
+            // the event fires for each hand, but we dont want our code to be executed twice
+            if (event.getHand() == EquipmentSlot.OFF_HAND) {
+                return;
+            }
+
             Mob mob = (Mob) event.getRightClicked();
             EntityInsentient craftMonster = (EntityInsentient) ((CraftEntity) mob).getHandle();
 
             if (isManipulatedMob(mob)) {
                 Player manipulator = getManipulator(mob);
                 if (manipulator != null && manipulator.getUniqueId().equals(player.getUniqueId())) {
-                    //NACHRICHT KOMMT 2x WEGEN 2 HÄNDEN
                     player.sendMessage(Localization.INSTANCE.getMessage("manipulator.alreadyYourMob", ChatUtils.getPlayerLocale(player)));
                     return;
                 }
-                player.sendMessage(Localization.INSTANCE.getMessage("manipulator.alreadyControlled", ChatUtils.getPlayerLocale(player)));
-                return;
             }
 
             if (getManipulatedMobAmount(player) >= maxManipulatedMobs) {
-                player.sendMessage(Localization.INSTANCE.getMessage("manipulator.maxAmount", ChatUtils.getPlayerLocale(player)));
+                player.sendMessage(Localization.INSTANCE.getMessage("manipulator.maxAmount",
+                        ImmutableMap.of("maxManipulatedMobs", String.valueOf(maxManipulatedMobs)), ChatUtils.getPlayerLocale(player)));
                 return;
             }
 
