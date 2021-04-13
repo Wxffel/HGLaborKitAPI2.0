@@ -18,13 +18,11 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Egg;
-import org.bukkit.entity.Fireball;
-import org.bukkit.entity.Item;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -179,7 +177,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
 
     // fires when an entity (tnt, creeper etc.) explodes
     @EventHandler
-    public void onExplosionPrime(EntityExplodeEvent event) {
+    public void onEntityExplode(EntityExplodeEvent event) {
         checkExplosion(event.blockList());
     }
 
