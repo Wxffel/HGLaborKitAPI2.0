@@ -13,6 +13,7 @@ import de.hglabor.plugins.kitapi.util.Logger;
 import de.hglabor.utils.localization.Localization;
 import de.hglabor.utils.noriskutils.ChatUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Barrel;
@@ -49,6 +50,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
     private final String explosionBarrelMetaKey;
     private final String explosionBarrelsKey;
     private final String UUID_KEY = "uuid";
+    private final String RIGHT_CLICK = "right_click";
 
     private final ItemStack canon = new KitItemBuilder(Material.FIRE_CHARGE).setName("Kanone").setDescription("Abschuss!!").build();
     private final ItemStack remoteDetonator = new KitItemBuilder(Material.TRIPWIRE_HOOK).setName("Fernzünder").setDescription("Explosion!!").build();
@@ -92,6 +94,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
                 nothingChangedMsg(player);
                 return;
             }
+            barrels.forEach(barrel -> barrel.setMetadata(RIGHT_CLICK, new FixedMetadataValue(KitApi.getInstance().getPlugin(), "")));
             for (Block barrel : barrels) {
                 detonateExplosionBarrel(barrel);
             }
@@ -153,9 +156,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
         }
     }
 
-    // todo: nur bei einer "linksklick zündung" abfragen, ansonsten explodieren sowieso alle und es geht auch bruch
     // idea: little delay for more realistic chain reactions
-
     // fires when a barrel detonates (this is responsible for chain reactions!)
     @EventHandler
     public void onBlockExplode(BlockExplodeEvent event) {
@@ -180,7 +181,9 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
             List<Block> barrels = kitPlayer.getKitAttributeOrDefault(explosionBarrelsKey, Collections.emptyList());
             barrels.removeIf(barrel -> barrel.equals(block));
             kitPlayer.putKitAttribute(explosionBarrelsKey, barrels);
-            detonateExplosionBarrel(block);
+            if (!block.hasMetadata(RIGHT_CLICK))
+                detonateExplosionBarrel(block);
+            else block.getWorld().getPlayers().get(0).sendMessage("RIGHT KLICK"); // debug
         });
     }
 
