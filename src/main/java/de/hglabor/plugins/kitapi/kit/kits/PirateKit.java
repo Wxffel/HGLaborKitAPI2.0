@@ -120,11 +120,15 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH)
     public void onBlockPlace(BlockPlaceEvent event) {
+        Player player = event.getPlayer();
+        if (event.isCancelled()) {
+            player.sendMessage(Localization.INSTANCE.getMessage("pirate.placefailure", ChatUtils.getPlayerLocale(player)));
+            return;
+        }
         Block barrel = event.getBlockPlaced();
         if (barrel.getType() != Material.BARREL) return;
-        Player player = event.getPlayer();
         KitPlayer kitPlayer = KitApi.getInstance().getPlayer(player);
         if (kitPlayer.hasKit(this)) {
             List<Block> barrels = kitPlayer.getKitAttributeOrDefault(explosionBarrelsKey, new ArrayList<>());
