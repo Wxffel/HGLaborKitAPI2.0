@@ -24,6 +24,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
@@ -152,26 +153,35 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
         }
     }
 
-    // ist verantwortlich für kettenreaktionen =)
     // todo: nur bei einer "linksklick zündung" abfragen, ansonsten explodieren sowieso alle und es geht auch bruch
-    // maybe kleinen delay adden, damit es realistischer ist (:
-    @EventHandler
-    public void onExplosion(BlockExplodeEvent event) {
+    // idea: little delay for more realistic chain reactions
 
-        List<Block> explosionsBarrels = event.blockList().stream()
+    // fires when a barrel detonates (this is responsible for chain reactions!)
+    @EventHandler
+    public void onBlockExplode(BlockExplodeEvent event) {
+        checkExplosion(event.blockList());
+    }
+
+    // fires when an entity (tnt, creeper etc.) explodes
+    @EventHandler
+    public void onExplosionPrime(EntityExplodeEvent event) {
+        checkExplosion(event.blockList());
+    }
+
+    // detonates and removes all explosion barrels in the blocklist
+    private void checkExplosion(List<Block> blockList) {
+        List<Block> explosionsBarrels = blockList.stream()
                 .filter(Objects::nonNull)
                 .filter(this::isExplosionBarrel)
                 .collect(Collectors.toList());
 
         explosionsBarrels.forEach(block -> {
-            detonateExplosionBarrel(block);
             KitPlayer kitPlayer = KitApi.getInstance().getPlayer(Bukkit.getPlayer((UUID) block.getMetadata(UUID_KEY).get(0).value())); // risky
             List<Block> barrels = kitPlayer.getKitAttributeOrDefault(explosionBarrelsKey, Collections.emptyList());
             barrels.removeIf(barrel -> barrel.equals(block));
             kitPlayer.putKitAttribute(explosionBarrelsKey, barrels);
+            detonateExplosionBarrel(block);
         });
-
-        //event.getBlock().getWorld().getPlayers().get(0).sendMessage("explosionsBarrels: " + explosionsBarrels.size()); // debug
     }
 
     private void detonateExplosionBarrel(Block block) {
@@ -180,7 +190,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
             float limitedExplosionPower = Math.min(Math.min(explosionPower, maxAdditionalExplosionPower), 100f); // 100f = explosionPower (max)
             block.setType(Material.AIR); // have to be done so the barrel cant be reused!
             block.getWorld().createExplosion(block.getLocation(), limitedExplosionPower, true, true);
-            //block.getWorld().getPlayers().get(0).sendMessage("Ich habe ausgelöst."); // debug
+            //block.getWorld().getPlayers().get(0).sendMessage("I exploded"); // debug
         }
     }
 
