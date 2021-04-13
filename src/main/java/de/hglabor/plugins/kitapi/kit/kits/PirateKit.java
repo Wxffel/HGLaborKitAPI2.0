@@ -50,7 +50,6 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
     private final String explosionBarrelMetaKey;
     private final String explosionBarrelsKey;
     private final String UUID_KEY = "uuid";
-    private final String RIGHT_CLICK = "right_click";
 
     private final ItemStack canon = new KitItemBuilder(Material.FIRE_CHARGE).setName("Kanone").setDescription("Abschuss!!").build();
     private final ItemStack remoteDetonator = new KitItemBuilder(Material.TRIPWIRE_HOOK).setName("Fernzünder").setDescription("Explosion!!").build();
@@ -88,17 +87,33 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
     @KitEvent
     public void onPlayerRightClicksOneOfMultipleKitItems(PlayerInteractEvent event, KitPlayer kitPlayer, ItemStack item) {
         Player player = event.getPlayer();
+        World world = player.getWorld();
         if (item.isSimilar(remoteDetonator)) {
             List<Block> barrels = kitPlayer.getKitAttributeOrDefault(explosionBarrelsKey, Collections.emptyList());
             if (barrels.isEmpty()) {
                 nothingChangedMsg(player);
                 return;
             }
-            barrels.forEach(barrel -> barrel.setMetadata(RIGHT_CLICK, new FixedMetadataValue(KitApi.getInstance().getPlugin(), "")));
-            for (Block barrel : barrels) {
-                detonateExplosionBarrel(barrel);
+
+            // sets all explosion barrels to air -> because all the explosion barrels are changed to AIR they will no longer be detected
+            // in onBlockExplode and onExplosionPrime also they will no longer destroy anderer barrels um sie herum, ohne dass sie explodieren
+            // safes the explosion barrel location and it's explosion power
+            HashMap<Location, Float> explosionBarrels = new HashMap<>();
+            for (Block block : barrels) {
+                if (isExplosionBarrel(block)) {
+                    float finalExplosionPower = getFinalExplosionPower(block);
+                    block.setType(Material.AIR); // have to be done so the barrel cant be reused!
+                    explosionBarrels.put(block.getLocation(), finalExplosionPower);
+                }
             }
+
+            // creates explosions at the barrel locations with their explosion power
+            for (Location loc : explosionBarrels.keySet()) {
+                world.createExplosion(loc, explosionBarrels.get(loc), true, true);
+            }
+
             successfulDetonated(player, barrels.size());
+            explosionBarrels.clear();
             barrels.clear();
         } else if (item.isSimilar(canon)) {
             player.launchProjectile(Fireball.class, player.getEyeLocation().getDirection().multiply(fireballSpeed));
@@ -181,20 +196,21 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
             List<Block> barrels = kitPlayer.getKitAttributeOrDefault(explosionBarrelsKey, Collections.emptyList());
             barrels.removeIf(barrel -> barrel.equals(block));
             kitPlayer.putKitAttribute(explosionBarrelsKey, barrels);
-            if (!block.hasMetadata(RIGHT_CLICK))
-                detonateExplosionBarrel(block);
-            else block.getWorld().getPlayers().get(0).sendMessage("RIGHT KLICK"); // debug
+            detonateExplosionBarrel(block);
         });
     }
 
     private void detonateExplosionBarrel(Block block) {
         if (isExplosionBarrel(block)) {
-            float explosionPower = defaultExplosionPower + getAdditionalExplosionPower(block);
-            float limitedExplosionPower = Math.min(Math.min(explosionPower, maxAdditionalExplosionPower), 100f); // 100f = explosionPower (max)
+            float finalExplosionPower = getFinalExplosionPower(block);
             block.setType(Material.AIR); // have to be done so the barrel cant be reused!
-            block.getWorld().createExplosion(block.getLocation(), limitedExplosionPower, true, true);
-            //block.getWorld().getPlayers().get(0).sendMessage("I exploded"); // debug
+            block.getWorld().createExplosion(block.getLocation(), finalExplosionPower, true, true);
         }
+    }
+
+    private float getFinalExplosionPower(Block block) {
+        float explosionPower = defaultExplosionPower + getAdditionalExplosionPower(block);
+        return Math.min(Math.min(explosionPower, maxAdditionalExplosionPower), 100f);
     }
 
     private float getAdditionalExplosionPower(Block block) {
