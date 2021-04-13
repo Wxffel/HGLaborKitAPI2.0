@@ -10,6 +10,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -50,6 +51,14 @@ public abstract class MultipleKitItemsKit extends MultipleCooldownsKit<KitItemAc
         }
     }
 
+    protected void activateCooldown(KitPlayer kitPlayer, ItemStack itemStack, Boolean ignoreCurrentCooldown) {
+        if (ignoreCurrentCooldown != null && ignoreCurrentCooldown)
+            kitPlayer.putKitAttribute(getCooldownKey(itemStack), new Cooldown(true, cooldowns.getOrDefault(byItemStack(itemStack), 0F)));
+        else if (!kitPlayer.getKitAttributeOrDefault(getCooldownKey(itemStack), new Cooldown(false)).hasCooldown()) {
+            kitPlayer.putKitAttribute(getCooldownKey(itemStack), new Cooldown(true, cooldowns.getOrDefault(byItemStack(itemStack), 0F)));
+        }
+    }
+
     /**
      * @param kitPlayer kitplayer
      * @param itemStack kititem
@@ -68,7 +77,7 @@ public abstract class MultipleKitItemsKit extends MultipleCooldownsKit<KitItemAc
         }
 
         String cooldownKey = getCooldownKey(itemStack);
-        Cooldown kitCooldown = kitPlayer.getKitAttributeOrDefault(cooldownKey,new Cooldown(false));
+        Cooldown kitCooldown = kitPlayer.getKitAttributeOrDefault(cooldownKey, new Cooldown(false));
         Player player = Bukkit.getPlayer(kitPlayer.getUUID());
         if (player == null) {
             return false;
@@ -77,7 +86,7 @@ public abstract class MultipleKitItemsKit extends MultipleCooldownsKit<KitItemAc
         if (kitCooldown.hasCooldown()) {
             long timeLeft = (kitCooldown.getEndTime()) - System.currentTimeMillis();
             if (timeLeft <= 0) {
-                kitPlayer.putKitAttribute(cooldownKey,null);
+                kitPlayer.putKitAttribute(cooldownKey, null);
                 return false;
             }
             Locale locale = ChatUtils.getPlayerLocale(player);
