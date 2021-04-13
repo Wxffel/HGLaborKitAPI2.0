@@ -20,6 +20,7 @@ import org.bukkit.block.Barrel;
 import org.bukkit.block.Block;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
@@ -43,21 +44,22 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
     @IntArg
     private final int explosionBarrelsLimit, fireballSpeed;
     @FloatArg(min = 0.1F, max = 100f)
-    private final float defaultExplosionPower, additionalExplosionPowerStep, maxAdditionalExplosionPower;
+    private final float defaultExplosionPower, additionalExplosionPowerStep, maxAdditionalExplosionPower, canonCooldown, detonatorCooldown;
 
     private final String explosionBarrelMetaKey;
     private final String explosionBarrelsKey;
     private final String UUID_KEY = "uuid";
-
     private final ItemStack canon = new KitItemBuilder(Material.FIRE_CHARGE).setName("Kanone").setDescription("Abschuss!!").build();
     private final ItemStack remoteDetonator = new KitItemBuilder(Material.TRIPWIRE_HOOK).setName("Fernzünder").setDescription("Explosion!!").build();
 
     // todo: Barrels als additional kititem adden (3x)
     protected PirateKit() {
         super("Pirate", Material.FIRE_CHARGE);
+        canonCooldown = 5f;
+        detonatorCooldown = 5f;
         Map<KitItemAction, Float> kitActions = Map.of(
-                new KitItemAction(canon, "pirate.canon"), 5F,
-                new KitItemAction(remoteDetonator, "pirate.remoteDetonator"), 5F
+                new KitItemAction(canon, "pirate.canon"), canonCooldown,
+                new KitItemAction(remoteDetonator, "pirate.remoteDetonator"), detonatorCooldown
         );
         setItemsAndCooldown(kitActions);
         explosionBarrelsLimit = 3;
