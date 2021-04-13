@@ -94,7 +94,6 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
                 nothingChangedMsg(player);
                 return;
             }
-
             // sets all explosion barrels to air -> because all the explosion barrels are changed to AIR they will no longer be detected
             // in onBlockExplode and onExplosionPrime also they will no longer destroy anderer barrels um sie herum, ohne dass sie explodieren
             // safes the explosion barrel location and it's explosion power
@@ -148,7 +147,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
             Locale locale = ChatUtils.getPlayerLocale(player);
             ImmutableMap<String, String> arguments = ImmutableMap.of("limit", String.valueOf(explosionBarrelsLimit));
             player.sendMessage(t(key, arguments, locale));
-
+            this.activateCooldown(kitPlayer, remoteDetonator, true);
         }
     }
 
