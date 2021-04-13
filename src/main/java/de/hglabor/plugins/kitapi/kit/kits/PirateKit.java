@@ -55,7 +55,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
     // todo: Barrels als additional kititem adden (3x)
     protected PirateKit() {
         super("Pirate", Material.FIRE_CHARGE);
-        canonCooldown = 5f;
+        canonCooldown = 30f;
         detonatorCooldown = 5f;
         Map<KitItemAction, Float> kitActions = Map.of(
                 new KitItemAction(canon, "pirate.canon"), canonCooldown,
