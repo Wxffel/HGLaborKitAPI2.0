@@ -153,7 +153,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
     }
 
     // ist verantwortlich für kettenreaktionen =)
-    // todo: nur bei einer "linksklick zündung" abfragen, ansonsten explodieren sowieso alle
+    // todo: nur bei einer "linksklick zündung" abfragen, ansonsten explodieren sowieso alle und es geht auch bruch
     // maybe kleinen delay adden, damit es realistischer ist (:
     @EventHandler
     public void onExplosion(BlockExplodeEvent event) {
