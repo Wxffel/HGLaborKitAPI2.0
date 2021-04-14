@@ -9,7 +9,6 @@ import de.hglabor.plugins.kitapi.kit.items.KitItemBuilder;
 import de.hglabor.plugins.kitapi.kit.settings.FloatArg;
 import de.hglabor.plugins.kitapi.kit.settings.IntArg;
 import de.hglabor.plugins.kitapi.player.KitPlayer;
-import de.hglabor.plugins.kitapi.util.Logger;
 import de.hglabor.utils.localization.Localization;
 import de.hglabor.utils.noriskutils.ChatUtils;
 import org.bukkit.Bukkit;
@@ -23,18 +22,16 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
-import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
-import org.jetbrains.annotations.NotNull;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static de.hglabor.utils.localization.Localization.t;
 
@@ -42,15 +39,24 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
     public static final PirateKit INSTANCE = new PirateKit();
 
     @IntArg
-    private final int explosionBarrelsLimit, fireballSpeed;
+    private final int explosionBarrelsLimit, secondsToBoost, specSeconds;
+    @FloatArg
+    private final float detonatorCooldown, canonCooldown;
     @FloatArg(min = 0.1F, max = 100f)
-    private final float defaultExplosionPower, additionalExplosionPowerStep, maxAdditionalExplosionPower, canonCooldown, detonatorCooldown;
+    private final float defaultExplosionPower, additionalExplosionPowerStep, maxAdditionalExplosionPower,
+            fireballSpeed; // to add: explosionPower, damage
+    @FloatArg
+    private final float parrotVelocityMultiplier;
+
 
     private final String explosionBarrelMetaKey;
     private final String explosionBarrelsKey;
     private final String UUID_KEY = "uuid";
+    private final String PARROT_VARIANT = "parrot_variant";
+
     private final ItemStack canon = new KitItemBuilder(Material.FIRE_CHARGE).setName("Kanone").setDescription("Abschuss!!").build();
     private final ItemStack remoteDetonator = new KitItemBuilder(Material.TRIPWIRE_HOOK).setName("Fernzünder").setDescription("Explosion!!").build();
+    private final ItemStack parrotSpawner = new KitItemBuilder(Material.PARROT_SPAWN_EGG).setName("Tierfreundlich").setDescription("Ich sehe dich").build();
 
     // todo: Barrels als additional kititem adden (3x)
     protected PirateKit() {
@@ -59,16 +65,32 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
         detonatorCooldown = 5f;
         Map<KitItemAction, Float> kitActions = Map.of(
                 new KitItemAction(canon, "pirate.canon"), canonCooldown,
-                new KitItemAction(remoteDetonator, "pirate.remoteDetonator"), detonatorCooldown
+                new KitItemAction(remoteDetonator, "pirate.remoteDetonator"), detonatorCooldown,
+                new KitItemAction(parrotSpawner, "pirate.parrotSpawner"), 1f
         );
         setItemsAndCooldown(kitActions);
         explosionBarrelsLimit = 3;
         defaultExplosionPower = 3F;
-        fireballSpeed = 2;
+        fireballSpeed = 2f;
         explosionBarrelMetaKey = this.getName() + "explosionBarrel";
         explosionBarrelsKey = this.getName() + "explosionBarrelsList";
         maxAdditionalExplosionPower = 5F;
         additionalExplosionPowerStep = 0.5F;
+        parrotVelocityMultiplier = 1F;
+        secondsToBoost = 5;
+        specSeconds = 10;
+    }
+
+    @Override
+    public void onEnable(KitPlayer kitPlayer) {
+        setShoulderParrot(Bukkit.getPlayer(kitPlayer.getUUID()));
+    }
+
+    @Override
+    public void onDeactivation(KitPlayer kitPlayer) {
+        // disable barrel placing
+        // disable detonation
+        // disable parrot aktivation & spec
     }
 
     @KitEvent
@@ -115,8 +137,19 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
             explosionBarrels.clear();
             barrels.clear();
         } else if (item.isSimilar(canon)) {
+            // idea: removing canon projectile (Fireball) after certain amount of time so the server doesn't get lagged
             player.launchProjectile(Fireball.class, player.getEyeLocation().getDirection().multiply(fireballSpeed));
             this.activateCooldown(kitPlayer, item);
+        } else if (item.isSimilar(parrotSpawner)) {
+            player.setShoulderEntityRight(null);
+            parrotSpecAbility(player);
+        }
+    }
+
+    @EventHandler
+    public void onCreatureSpawnEvent(CreatureSpawnEvent event) {
+        if (event.getSpawnReason() == CreatureSpawnEvent.SpawnReason.SHOULDER_ENTITY && event.getEntity().getType() == EntityType.PARROT) {
+            event.setCancelled(true);
         }
     }
 
@@ -174,7 +207,6 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
         }
     }
 
-    // idea: little delay for more realistic chain reactions
     // fires when a barrel detonates (this is responsible for chain reactions!)
     @EventHandler
     public void onBlockExplode(BlockExplodeEvent event) {
@@ -228,6 +260,56 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
 
     private boolean isExplosionBarrel(Block block) {
         return block.getType() == Material.BARREL && block.hasMetadata(explosionBarrelMetaKey) && block.hasMetadata(UUID_KEY);
+    }
+
+    public void parrotSpecAbility(Player player) {
+        World world = player.getWorld();
+        Parrot parrot = (Parrot) world.spawnEntity(player.getEyeLocation(), EntityType.PARROT);
+        parrot.addPassenger(player);
+
+        new BukkitRunnable() {
+            int i = 0;
+
+            @Override
+            public void run() {
+                if (i <= (secondsToBoost * 2))
+                    parrot.setVelocity(player.getEyeLocation().getDirection().multiply(parrotVelocityMultiplier).setY(parrotVelocityMultiplier > 0 ? parrotVelocityMultiplier : parrotVelocityMultiplier * -1));
+                if (i > (specSeconds * 2) || parrot.isOnGround() || player.isOnGround()) {
+                    player.sendMessage("Absturz");
+                    parrot.removePassenger(player);
+                    this.cancel();
+                }
+                i++;
+            }
+        }.runTaskTimer(KitApi.getInstance().getPlugin(), 0L, 10);
+    }
+
+
+    public void setShoulderParrot(Player player) {
+        Parrot parrot = gimmeParrot(player);
+        parrot.remove();
+        player.setShoulderEntityRight(parrot);
+    }
+
+    private Parrot gimmeParrot(Player player) {
+        Parrot parrot = (Parrot) player.getWorld().spawnEntity(player.getEyeLocation(), EntityType.PARROT);
+        parrot.setOwner(player);
+        parrot.setCustomName(player.displayName() + "chen");
+        parrot.setVariant(getKitPlayerParrotVariant(player));
+        return parrot;
+    }
+
+    private Parrot.Variant getKitPlayerParrotVariant(Player player) {
+        KitPlayer kitPlayer = KitApi.getInstance().getPlayer(player);
+        if (kitPlayer.getKitAttribute(PARROT_VARIANT) == null) {
+            kitPlayer.putKitAttribute(PARROT_VARIANT, getRandomParrotVariant());
+        }
+        return kitPlayer.getKitAttribute(PARROT_VARIANT);
+    }
+
+    private Parrot.Variant getRandomParrotVariant() {
+        Random random = new Random();
+        return Parrot.Variant.values()[random.nextInt(Parrot.Variant.values().length)];
     }
 
     private void nothingChangedMsg(Player player) {
