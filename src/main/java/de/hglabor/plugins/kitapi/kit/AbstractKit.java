@@ -80,7 +80,7 @@ public abstract class AbstractKit extends KitEvents {
     }
 
     /**
-     * some kits don't require an eventlistener so you can activate disable them here
+     * some kits don't require an eventlistener so you can disable them here
      * also used for kit rogue which disables all kits
      */
     public void onDeactivation(KitPlayer kitPlayer) {
