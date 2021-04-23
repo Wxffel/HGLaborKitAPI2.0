@@ -28,7 +28,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Vector;
+
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,7 +39,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
     public static final PirateKit INSTANCE = new PirateKit();
 
     @IntArg
-    private final int explosionBarrelsLimit, secondsToBoost, specSeconds;
+    private final int explosionBarrelsLimit, specSeconds;
     @FloatArg
     private final float detonatorCooldown, canonCooldown;
     @FloatArg(min = 0.1F, max = 100f)
@@ -77,7 +77,6 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
         maxAdditionalExplosionPower = 5F;
         additionalExplosionPowerStep = 0.5F;
         parrotVelocityMultiplier = 1F;
-        secondsToBoost = 5;
         specSeconds = 10;
     }
 
@@ -141,8 +140,7 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
             player.launchProjectile(Fireball.class, player.getEyeLocation().getDirection().multiply(fireballSpeed));
             this.activateCooldown(kitPlayer, item);
         } else if (item.isSimilar(parrotSpawner)) {
-            player.setShoulderEntityRight(null);
-            parrotSpecAbility(player);
+            // parrot-spec-ability
         }
     }
 
@@ -262,28 +260,53 @@ public class PirateKit extends MultipleKitItemsKit implements Listener {
         return block.getType() == Material.BARREL && block.hasMetadata(explosionBarrelMetaKey) && block.hasMetadata(UUID_KEY);
     }
 
+    /*
+    Ability: "Parrot Flight" or "Parrot Spec"
+    The pirate can fly his parrot;
+    - His inventory gets saved and cleared
+    - A NPC or something similar spawns at his position to imitate him
+    - The pirate gets an Elytra with which he can fly for:
+    1. A set amount of Time
+    2. A set distance (or both)
+    3. Other
+    - he gets disguised as a parrot (chameleon like)
+    - The parrot (aka the player in parrot-flight-mode) has the following abilities:
+    1. A feather with which he can boost himself as a parrot in the direction hes looking
+        Params: - boost amount (how often), - boost strength
+    2. A item to return to his body
+       - the pirate can instantly continue playing
+       - the parrot does have cooldown and is flying back to the pirate or something lol
+    3. A item to set the parrot as a camera (spawn parrot at his current position in parrot-flight-mode);
+       - the pirate can return to the parrot an see through the parrots eyes
+       - also, the parrot (automatically?) marks players with a glowing effect (in a radius or (more advanced) if he can see them)
+       - if the parrot dies -> cooldown, spawn new on the pirates shoulder
+    - the cooldown is made up of:
+    1. an set amount
+    2. (+) the distance from the position of the parrot to the pirates body
+    3. (-) the rest amount of time which the parrot could have been fly
+     */
+
     public void parrotSpecAbility(Player player) {
         World world = player.getWorld();
-        Parrot parrot = (Parrot) world.spawnEntity(player.getEyeLocation(), EntityType.PARROT);
-        parrot.addPassenger(player);
 
         new BukkitRunnable() {
             int i = 0;
 
             @Override
             public void run() {
-                if (i <= (secondsToBoost * 2))
-                    parrot.setVelocity(player.getEyeLocation().getDirection().multiply(parrotVelocityMultiplier).setY(parrotVelocityMultiplier > 0 ? parrotVelocityMultiplier : parrotVelocityMultiplier * -1));
-                if (i > (specSeconds * 2) || parrot.isOnGround() || player.isOnGround()) {
-                    player.sendMessage("Absturz");
-                    parrot.removePassenger(player);
+                if (i >= specSeconds) {
                     this.cancel();
+                } else {
+
+                    i++;
                 }
-                i++;
             }
-        }.runTaskTimer(KitApi.getInstance().getPlugin(), 0L, 10);
+        }.runTaskTimer(KitApi.getInstance().getPlugin(), 0L, 20);
     }
 
+    private void prepareParrotFlight(Player player) {
+        // clear inv etc.
+    }
 
     public void setShoulderParrot(Player player) {
         Parrot parrot = gimmeParrot(player);
